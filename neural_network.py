@@ -3,6 +3,8 @@ import numpy
 import scipy.special
 # library for plotting arrays
 import matplotlib.pyplot
+# scipy.ndimage for rotating image arrays
+import scipy.ndimage
 
 # neural network class definition
 class neuralNetwork:
@@ -25,6 +27,7 @@ class neuralNetwork:
 
         # activation function is the sigmoid function
         self.activation_function = lambda x: scipy.special.expit(x)
+        self.inverse_activation_function = lambda x: scipy.special.logit(x)
 
         pass
 
@@ -74,6 +77,38 @@ class neuralNetwork:
 
         return final_outputs
 
+    # backquery the neural network
+    # we'll use the same termnimology to each item,
+    # eg target are the values at the right of the network, albeit used as input
+    # eg hidden_output is the signal to the right of the middle nodes
+    def backquery(self, targets_list):
+        # transpose the targets list to a vertical array
+        final_outputs = numpy.array(targets_list, ndmin=2).T
+
+        # calculate the signal into the final output layer
+        final_inputs = self.inverse_activation_function(final_outputs)
+
+        # calculate the signal out of the hidden layer
+        hidden_outputs = numpy.dot(self.who.T, final_inputs)
+        # scale them back to 0.01 to .99
+        hidden_outputs -= numpy.min(hidden_outputs)
+        hidden_outputs /= numpy.max(hidden_outputs)
+        hidden_outputs *= 0.98
+        hidden_outputs += 0.01
+
+        # calculate the signal into the hidden layer
+        hidden_inputs = self.inverse_activation_function(hidden_outputs)
+
+        # calculate the signal out of the input layer
+        inputs = numpy.dot(self.wih.T, hidden_inputs)
+        # scale them back to 0.01 to .99
+        inputs -= numpy.min(inputs)
+        inputs /= numpy.max(inputs)
+        inputs *= 0.98
+        inputs += 0.01
+
+        return inputs
+
 def main():
     # number of input, hidden and output nodes
     input_nodes = 784
@@ -87,14 +122,14 @@ def main():
     n = neuralNetwork(input_nodes,hidden_nodes,output_nodes, learning_rate)
 
     # load the mnist training data CSV file into a list
-    training_data_file = open("test-data/mnist_train_100.csv", 'r')
+    training_data_file = open("real-data/mnist_train.csv", 'r')
     training_data_list = training_data_file.readlines()
     training_data_file.close()
 
     # train the neural network
 
     # epochs is the number of times the training data set is used for training
-    epochs = 5
+    epochs = 10
 
     for e in range(epochs):
         # go through all records in the training data set
@@ -108,11 +143,26 @@ def main():
             # all_values[0] is the target label for this record
             targets[int(all_values[0])] = 0.99
             n.train(inputs, targets)
+
+            ## create rotated variations
+            # rotated anticlockwise by x degrees
+            # inputs_plusx_img = scipy.ndimage.interpolation.rotate(inputs.reshape(28,28), 10, cval=0.01, order=1, reshape=False)
+            # n.train(inputs_plusx_img.reshape(784), targets)
+            # # rotated clockwise by x degrees
+            # inputs_minusx_img = scipy.ndimage.interpolation.rotate(inputs.reshape(28,28), -10, cval=0.01, order=1, reshape=False)
+            # n.train(inputs_minusx_img.reshape(784), targets)
+
+            # rotated anticlockwise by 10 degrees
+            inputs_plus10_img = scipy.ndimage.interpolation.rotate(inputs.reshape(28,28), 10, cval=0.01, order=1, reshape=False)
+            n.train(inputs_plus10_img.reshape(784), targets)
+            # rotated clockwise by 10 degrees
+            inputs_minus10_img = scipy.ndimage.interpolation.rotate(inputs.reshape(28,28), -10, cval=0.01, order=1, reshape=False)
+            n.train(inputs_minus10_img.reshape(784), targets)
             pass
         pass
 
     # load the mnist test data CSV file into a list
-    test_data_file = open("test-data/mnist_test_10.csv", 'r')
+    test_data_file = open("real-data/mnist_test.csv", 'r')
     test_data_list = test_data_file.readlines()
     test_data_file.close()
 
@@ -144,10 +194,37 @@ def main():
 
         pass
 
-
     # calculate the performance score, the fraction of correct answers
     scorecard_array = numpy.asarray(scorecard)
     print ("performance = ", scorecard_array.sum() / scorecard_array.size)
 
+    # run the network backwards, given a label, see what image it produces
+
+    # label to test
+    label = 0
+    # create the output signals for this label
+    targets = numpy.zeros(output_nodes) + 0.01
+    # all_values[0] is the target label for this record
+    targets[label] = 0.99
+    print(targets)
+
+    # get image data
+    image_data = n.backquery(targets)
+
+    # plot image data
+    # matplotlib.pyplot.imshow(image_data.reshape(28,28), cmap='Greys', interpolation='None')
+
+
 if __name__ == "__main__":
         main()
+
+# Explanation of how to code images in Python
+
+# def main():
+#     data_file = open("test-data/mnist_train_100.csv", 'r')
+#     data_list = data_file.readlines()
+#     data_file.close()
+
+#     all_values = data_list[0].split(',')
+#     image_array = numpy.asfarray(all_values[1:]).reshape((28,28))
+#     image = matplotlib.pyplot.imshow(image_array, cmap='Greys', interpolation='None')
