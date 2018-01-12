@@ -1,3 +1,7 @@
+# Example code from Make Your Own Neural Network by Tariq Rashid
+#
+# useful explanation of SGD and friends, http://neuralnetworksanddeeplearning.com/chap1.html
+
 import numpy
 # scipy.special for the sigmoid function expit()
 import scipy.special
